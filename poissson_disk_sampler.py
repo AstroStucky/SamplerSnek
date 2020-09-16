@@ -1,4 +1,31 @@
 #!/usr/bin/env python3
+
+# ---------------------------------------------------------------------------
+#   PROJECT       : PoissonDiskSampling
+#   AUTHOR        : Thomas Stucky
+#   FILENAME      : poissson_disk_sampler.py
+#   CREATED       : 2020-09-16
+#   TAB SIZE      : 4
+#   DESCRIPTION   : Library for generating uniformly distributed samples
+#                   within an area/volume using the fast Poisson disk sampling
+#                   algorithm described by Bridson et al. 2007.
+#  -------------------------GPL 3.0 LICENSE-----------------------------------
+#  Copyright (C) {:2020} Thomas R. Stucky
+# 
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# 
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+# 
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# ---------------------------------------------------------------------------
+
 import numpy as np
 import math
 import random
@@ -6,19 +33,39 @@ import matplotlib.pyplot as plt
 import sys
 from functools import partial
 
+# Plotting parameters
+FIGSIZE = [6,6] # inches
+FIGDPI = 120
+MPL_STYLE = "dark_background"
+
+""" Calculate distance squared between two N-dimensional points x and y"""
 def distance_sqrd(x, y):
     qsum = 0
     for i in range(len(x)):
         qsum += (y[i] - x[i]) ** 2
     return qsum
 
-def get_2d_grid_coordinates(x, grid_dx, xmin):
-    return [math.floor((x[0] - xmin)/ grid_dx), math.floor((x[1] - xmin)/ grid_dx)]
+""" Calculate coordinates on a 2D background grid. Assumes square grids
 
-def flatten_2d_index(index, dim):
-    return index[1] + index[0] * dim
+Args:
+    x (2D Vector): Point
+    grid_dx (float): Grid size
+    xmin (float): Minimum grid value
+
+Returns:
+    2D Vector of indices"""
+def get_2d_grid_coordinates(x, grid_dx, xmin):
+    return [math.floor((x[0] - xmin) / grid_dx), math.floor((x[1] - xmin) / grid_dx)]
 
 # returns sample in an annulus around x
+""" Return random 2d sample in an annulus around a point (radius < R < 2*radius)
+
+Args:
+    radius (float): inner radius of annulus
+    center (2D vector): point annulus is centered around
+
+Returns:
+    2D Vector"""
 def sample_2d_annulus(radius, center):
     r = None
     while True:
@@ -30,13 +77,29 @@ def sample_2d_annulus(radius, center):
 
 # def box_boundary(point, x_lim, y_lim):
 
-def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30):
+""" Generate a list of uniformly distributed 2D samples using poisson disk
+    sampling. Assumes a square sampling region.
+
+Args:
+    radius (float): Minimum distance between points
+    xmin (float): Minimum value of a point in x and y direction
+    xmax (float): Maximum value of a point in x and y direction
+    max_sample_attempts (integer): Higher number of attempts tends to create 
+                                   tighter packings
+    verbose (boolean): Print details about algorithm during execution
+    draw_algorithm (boolean): Draw algorithm results live to a matplotlib plot
+
+Returns:
+    List of 2D vectors"""
+def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30, verbose=False, draw_algorithm=False):
     
-    plt.ion()
-    plt.figure()
-    ax = plt.subplot()
-    ax.set_xlim((xmin, xmax))
-    ax.set_ylim((xmin, xmax))
+    if draw_algorithm:
+        plt.ion()
+        plt.style.use(MPL_STYLE)
+        plt.figure()
+        ax = plt.subplot()
+        ax.set_xlim((xmin, xmax))
+        ax.set_ylim((xmin, xmax))
 
     # randomize
     random.seed()
@@ -107,19 +170,34 @@ def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30):
             sample.append(x)
             active_list.append(q)
             background_grid[k[0]][k[1]] = q
-            plt.scatter(x[0], x[1], cmap=plt.cm.copper, s=1.0)
-            plt.draw()
-            plt.pause(0.001)
+            if draw_algorithm:
+                # plot sample
+                plt.scatter(x[0], x[1], cmap=plt.cm.copper, s=2.0)
+                # update drawing
+                plt.draw()
+                # sleep for a microsecond to allow MPL backend to catch up
+                plt.pause(0.001)
         else:
             active_list.pop(r)
-            # active_list[r] = active_list.pop()
-            print("Rejected")
+            if verbose:
+                print("Rejected")
+        
+        if verbose:
+            print("%s Samples, %s Active Points" % (len(sample), len(active_list)))
 
-        print("%s Samples, %s Active Points" % (len(sample), len(active_list)))
-
-    plt.ioff()
+    if draw_algorithm:
+        plt.ioff()
 
     return sample
+
+def plot_sample(sample, x_limits, y_limits, **kwargs):
+    plt.style.use(MPL_STYLE)
+    fig = plt.figure(figsize=FIGSIZE, dpi=FIGDPI)
+    for s in sample:
+        plt.scatter(s[0], s[1], **kwargs)
+    fig.axes[0].set_xlim(x_limits)
+    fig.axes[0].set_ylim(y_limits)
+    return fig
 
 if __name__ == "__main__":
 
@@ -127,13 +205,8 @@ if __name__ == "__main__":
     xmin = float(sys.argv[2])
     xmax = float(sys.argv[3])
 
-    sample = poisson_sample_2d_square(radius, xmin, xmax)
+    sample = poisson_sample_2d_square(radius, xmin, xmax, draw_algorithm=True)
 
-    # plot the result
-    fig = plt.figure(figsize=[3,3])
-    for s in sample:
-        plt.scatter(s[0],s[1], color='red', s=1.0)
-    fig.axes[0].set_xlim((xmin, xmax))
-    fig.axes[0].set_ylim((xmin, xmax))
+    fig = plot_sample(sample, (xmin, xmax), (xmin, xmax), s=3.0, cmap=plt.cm.jet)
+
     plt.show()
-
