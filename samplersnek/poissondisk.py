@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-
 # ---------------------------------------------------------------------------
-#   PROJECT       : PoissonDiskSampling
+#  
+#   PROJECT       : SamplerSnek
 #   AUTHOR        : Thomas Stucky
 #   FILENAME      : poissson_disk_sampler.py
 #   CREATED       : 2020-09-16
@@ -9,10 +8,14 @@
 #   DESCRIPTION   : Library for generating uniformly distributed samples
 #                   within an area/volume using the fast Poisson disk sampling
 #                   algorithm described by Bridson et al. 2007.
-#  -------------------------GPL 3.0 LICENSE-----------------------------------
-#  Copyright (C) {:2020} Thomas R. Stucky
+#
+# --------------------------GPL 3.0 LICENSE----------------------------------
+#
+#  Copyright (C) 2020 Thomas R. Stucky
 # 
-#  This program is free software: you can redistribute it and/or modify
+#  This file is part of SamplerSnek
+#
+#  SampleSnek is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -24,14 +27,17 @@
 # 
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 # ---------------------------------------------------------------------------
+
+#!/usr/bin/env python3
 
 import numpy as np
 import math
 import random
 import matplotlib.pyplot as plt
 import sys
-from functools import partial
+import functools
 
 # Plotting parameters
 FIGSIZE = [6,6] # inches
@@ -74,8 +80,6 @@ def sample_2d_annulus(radius, center):
         if r_sqrd > 1 and r_sqrd <= 4:
             break;
     return center + radius * r;
-
-# def box_boundary(point, x_lim, y_lim):
 
 """ Generate a list of uniformly distributed 2D samples using poisson disk
     sampling. Assumes a square sampling region.
