@@ -1,0 +1,3 @@
+[submodule "dependencies/VectorSnek"]
+	path = dependencies/VectorSnek
+	url = https://github.com/AstroStucky/VectorSnek.git
