@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # ---------------------------------------------------------------------------
 #  
 #   PROJECT       : SamplerSnek
@@ -30,14 +31,15 @@
 #
 # ---------------------------------------------------------------------------
 
-#!/usr/bin/env python3
-
 import numpy as np
 import math
 import random
 import matplotlib.pyplot as plt
 import sys
 import functools
+
+from VectorSnek.vectorsnek.vectors import Vector
+import shapes
 
 # Plotting parameters
 FIGSIZE = [6,6] # inches
@@ -46,22 +48,24 @@ MPL_STYLE = "dark_background"
 
 """ Calculate distance squared between two N-dimensional points x and y"""
 def distance_sqrd(x, y):
-    qsum = 0
-    for i in range(len(x)):
-        qsum += (y[i] - x[i]) ** 2
-    return qsum
+    diff = y - x
+    return diff.dot(diff)
 
 """ Calculate coordinates on a 2D background grid. Assumes square grids
 
 Args:
     x (2D Vector): Point
     grid_dx (float): Grid size
-    xmin (float): Minimum grid value
+    mins (2D Vector): Minimum grid value
 
 Returns:
     2D Vector of indices"""
-def get_2d_grid_coordinates(x, grid_dx, xmin):
-    return [math.floor((x[0] - xmin) / grid_dx), math.floor((x[1] - xmin) / grid_dx)]
+def get_2d_grid_coordinates(p, grid_dx, mins):
+    # print(p)
+    # print(grid_dx)
+    # print(mins)
+
+    return math.floor(Vector([(p.x - mins.x) / grid_dx, (p.y - mins.y) / grid_dx]))
 
 # returns sample in an annulus around x
 """ Return random 2d sample in an annulus around a point (radius < R < 2*radius)
@@ -73,21 +77,18 @@ Args:
 Returns:
     2D Vector"""
 def sample_2d_annulus(radius, center):
-    r = None
     while True:
-        r = np.array([random.uniform(-2, 2), random.uniform(-2, 2)])
-        r_sqrd = np.dot(r, r)
+        r = Vector([random.uniform(-2, 2), random.uniform(-2, 2)])
+        r_sqrd = r.dot(r)
         if r_sqrd > 1 and r_sqrd <= 4:
-            break;
-    return center + radius * r;
+            return center + radius * r
 
 """ Generate a list of uniformly distributed 2D samples using poisson disk
     sampling. Assumes a square sampling region.
 
 Args:
     radius (float): Minimum distance between points
-    xmin (float): Minimum value of a point in x and y direction
-    xmax (float): Maximum value of a point in x and y direction
+    shape (Shape2D): Sampling domain
     max_sample_attempts (integer): Higher number of attempts tends to create 
                                    tighter packings
     verbose (boolean): Print details about algorithm during execution
@@ -95,15 +96,20 @@ Args:
 
 Returns:
     List of 2D vectors"""
-def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30, verbose=False, draw_algorithm=False):
-    
+def poisson_sample_2d_square(radius, shape, max_sample_attempts=30, verbose=False, draw_algorithm=False):
+
+    xmin = shape.xmin
+    xmax = shape.xmax
+    ymin = shape.ymin
+    ymax = shape.ymax
+
     if draw_algorithm:
         plt.ion()
         plt.style.use(MPL_STYLE)
         plt.figure()
         ax = plt.subplot()
         ax.set_xlim((xmin, xmax))
-        ax.set_ylim((xmin, xmax))
+        ax.set_ylim((ymin, ymax))
 
     # randomize
     random.seed()
@@ -113,17 +119,20 @@ def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30, verbose
     ## Step 0
     # initialize 2D background grid for accelerating spatial search
     grid_dx = radius / math.sqrt(2.0) # contain at most 1 sample 
-    dimension = math.ceil((xmax - xmin)/grid_dx)
+    dims = Vector([math.ceil((xmax - xmin) / grid_dx), math.ceil((ymax - ymin) / grid_dx)])
     # -1 indictes no sample in cell, non-negative is index of sample in cell
-    background_grid = np.full((dimension, dimension), -1)
+    background_grid = np.full((dims.x, dims.y), -1)
 
     ## Step 1
     # randomly select initial sample
-    x = np.array([random.uniform(xmin, xmax), random.uniform(xmin, xmax)])
-    sample.append(x)
+    while True:
+        x = Vector([random.uniform(xmin, xmax), random.uniform(ymin, ymax)])
+        if shape.contains(x):
+            sample.append(x)
+            break
     # insert into background grid with the index of the sample
-    p = get_2d_grid_coordinates(x, grid_dx, xmin)
-    background_grid[p[0]][p[1]] = 0
+    p = get_2d_grid_coordinates(x, grid_dx, Vector([xmin, ymin]))
+    background_grid[p.x][p.y] = 0
     # initialize active list with the index of the sample
     active_list = list([0])
 
@@ -138,16 +147,16 @@ def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30, verbose
         for attempt in range(max_sample_attempts):
             x = sample_2d_annulus(radius, sample[p])
 
-            # check if sample is within bounds
-            if x[0] < xmin  or x[1] < xmin or x[0] > xmax or x[1] > xmax:
+            # check if sample is within shape
+            if not shape.contains(x):
                 continue
 
             # check if point is within distance r of existing samples
-            k = get_2d_grid_coordinates(x, grid_dx, xmin)
-            i_min = max(k[0] - 2, 0)
-            i_max = min(k[0] + 2, dimension - 1)
-            j_min = max(k[1] - 2, 0)
-            j_max = min(k[1] + 2, dimension - 1)
+            k = get_2d_grid_coordinates(x, grid_dx, Vector([xmin, ymin]))
+            i_min = max(k.x - 2, 0)
+            i_max = min(k.x + 2, dims.x - 1)
+            j_min = max(k.y - 2, 0)
+            j_max = min(k.y + 2, dims.y - 1)
             
             reject_sample = False
             for i in range(i_min, i_max + 1):
@@ -173,10 +182,10 @@ def poisson_sample_2d_square(radius, xmin, xmax, max_sample_attempts=30, verbose
             q = len(sample)
             sample.append(x)
             active_list.append(q)
-            background_grid[k[0]][k[1]] = q
+            background_grid[k.x][k.y] = q
             if draw_algorithm:
                 # plot sample
-                plt.scatter(x[0], x[1], cmap=plt.cm.copper, s=2.0)
+                plt.scatter(x.x, x.y, cmap=plt.cm.copper, s=2.0)
                 # update drawing
                 plt.draw()
                 # sleep for a microsecond to allow MPL backend to catch up
@@ -198,7 +207,7 @@ def plot_sample(sample, x_limits, y_limits, **kwargs):
     plt.style.use(MPL_STYLE)
     fig = plt.figure(figsize=FIGSIZE, dpi=FIGDPI)
     for s in sample:
-        plt.scatter(s[0], s[1], **kwargs)
+        plt.scatter(s.x, s.y, **kwargs)
     fig.axes[0].set_xlim(x_limits)
     fig.axes[0].set_ylim(y_limits)
     return fig
@@ -206,11 +215,21 @@ def plot_sample(sample, x_limits, y_limits, **kwargs):
 if __name__ == "__main__":
 
     radius = float(sys.argv[1])
-    xmin = float(sys.argv[2])
-    xmax = float(sys.argv[3])
 
-    sample = poisson_sample_2d_square(radius, xmin, xmax, draw_algorithm=True)
+    # shape = shapes.AxisAlignedRectangle(Vector([-1, 0]), Vector([5, 2]))
 
-    fig = plot_sample(sample, (xmin, xmax), (xmin, xmax), s=3.0, cmap=plt.cm.jet)
+    # a = Vector([-10, -6])
+    # b = Vector([-5, 5])
+    # c = Vector([10, 0])
+    # shape = shapes.Triangle(a, c, b)
+
+    bl_corner = Vector([-4, -2])
+    dimensions = Vector([8, 10])
+    orientation = 60.0
+    shape = shapes.Rectangle(bl_corner, dimensions, orientation)
+
+    sample = poisson_sample_2d_square(radius, shape, draw_algorithm=False, max_sample_attempts=100)
+
+    fig = plot_sample(sample, (shape.xmin, shape.xmax), (shape.ymin, shape.ymax), s=3.0, cmap=plt.cm.jet)
 
     plt.show()

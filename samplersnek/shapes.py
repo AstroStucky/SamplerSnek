@@ -111,6 +111,9 @@ class Rectangle(Shape2D):
         self.c = self.a + diagonal
         # projection onto base of rectangle
         self.d = self.a + (diagonal * base_hat) * base_hat
+        # pass range to parent
+        super().__init__(min(self.a.x, self.b.x, self.c.x, self.d.x), max(self.a.x, self.b.x, self.c.x, self.d.x), min(self.a.y, self.b.y, self.c.y, self.d.y), max(self.a.y, self.b.y, self.c.y, self.d.y))
+        # create 2 triangles to represent rectangle
         self._triangle_1 = Triangle(self.a, self.b, self.c)
         self._triangle_2 = Triangle(self.a, self.c, self.d)
 
