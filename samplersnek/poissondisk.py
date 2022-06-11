@@ -3,7 +3,7 @@
 #  
 #   PROJECT       : SamplerSnek
 #   AUTHOR        : Thomas Stucky
-#   FILENAME      : poissson_disk_sampler.py
+#   FILENAME      : poisssondisk.py
 #   CREATED       : 2020-09-16
 #   TAB SIZE      : 4
 #   DESCRIPTION   : Library for generating uniformly distributed samples
@@ -31,14 +31,16 @@
 #
 # ---------------------------------------------------------------------------
 
-import numpy as np
+import sys
 import math
 import random
+import argparse
+
 import matplotlib.pyplot as plt
-import sys
-import functools
+import numpy as np
 
 from VectorSnek.vectorsnek.vectors import Vector
+
 import shapes
 
 # Plotting parameters
@@ -52,28 +54,23 @@ def distance_sqrd(x, y):
     return diff.dot(diff)
 
 """ Calculate coordinates on a 2D background grid. Assumes square grids
-
 Args:
     x (2D Vector): Point
     grid_dx (float): Grid size
     mins (2D Vector): Minimum grid value
-
 Returns:
     2D Vector of indices"""
 def get_2d_grid_coordinates(p, grid_dx, mins):
     # print(p)
     # print(grid_dx)
     # print(mins)
-
     return math.floor(Vector([(p.x - mins.x) / grid_dx, (p.y - mins.y) / grid_dx]))
 
 # returns sample in an annulus around x
 """ Return random 2d sample in an annulus around a point (radius < R < 2*radius)
-
 Args:
     radius (float): inner radius of annulus
     center (2D vector): point annulus is centered around
-
 Returns:
     2D Vector"""
 def sample_2d_annulus(radius, center):
@@ -85,7 +82,6 @@ def sample_2d_annulus(radius, center):
 
 """ Generate a list of uniformly distributed 2D samples using poisson disk
     sampling. Assumes a square sampling region.
-
 Args:
     radius (float): Minimum distance between points
     shape (Shape2D): Sampling domain
@@ -93,7 +89,6 @@ Args:
                                    tighter packings
     verbose (boolean): Print details about algorithm during execution
     draw_algorithm (boolean): Draw algorithm results live to a matplotlib plot
-
 Returns:
     List of 2D vectors"""
 def poisson_sample_2d_square(radius, shape, max_sample_attempts=30, verbose=False, draw_algorithm=False):
@@ -204,6 +199,7 @@ def poisson_sample_2d_square(radius, shape, max_sample_attempts=30, verbose=Fals
     return sample
 
 def plot_sample(sample, x_limits, y_limits, **kwargs):
+
     plt.style.use(MPL_STYLE)
     fig = plt.figure(figsize=FIGSIZE, dpi=FIGDPI)
     for s in sample:
@@ -218,15 +214,15 @@ if __name__ == "__main__":
 
     # shape = shapes.AxisAlignedRectangle(Vector([-1, 0]), Vector([5, 2]))
 
-    # a = Vector([-10, -6])
-    # b = Vector([-5, 5])
-    # c = Vector([10, 0])
-    # shape = shapes.Triangle(a, c, b)
+    a = Vector([-10, -6])
+    b = Vector([-5, 5])
+    c = Vector([10, 0])
+    shape = shapes.Triangle(a, c, b)
 
-    bl_corner = Vector([-4, -2])
-    dimensions = Vector([8, 10])
-    orientation = 60.0
-    shape = shapes.Rectangle(bl_corner, dimensions, orientation)
+    # bl_corner = Vector([-4, -2])
+    # dimensions = Vector([8, 10])
+    # orientation = 60.0
+    # shape = shapes.Rectangle(bl_corner, dimensions, orientation)
 
     sample = poisson_sample_2d_square(radius, shape, draw_algorithm=False, max_sample_attempts=100)
 

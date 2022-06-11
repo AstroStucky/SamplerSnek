@@ -43,10 +43,8 @@ class Shape2D(abc.ABC):
         self.ymax = ymax
     
     """ Returns true if x is inside the shape, false otherwise
-    
     Args:
         x (2D Vector): Point being tested
-    
     Returns:
         bool """
     @abc.abstractmethod
@@ -56,18 +54,22 @@ class Shape2D(abc.ABC):
 class AxisAlignedRectangle(Shape2D):
 
     """ initialize with shape parameters
-    
     Args:
-        corner1 (2D Vector): first corner of the rectangle
-        corner2 (2D Vector): second corner across the diagonal from the first
-    
+        corner_1_pos (2D Vector) : first corner of the rectangle
+        corner_2_pos (2D Vector) : second corner diagonally across
     Returns:
         None """
-    def __init__(self, corner1, corner2):
-        super().__init__(min(corner1.x, corner2.x), max(corner1.x, corner2.x), min(corner1.y, corner2.y), max(corner1.y, corner2.y))
+    def __init__(self, corner_1_pos, corner_2_pos):
+        super().__init__(
+            min(corner_1_pos.x, corner_2_pos.x),
+            max(corner_1_pos.x, corner_2_pos.x),
+            min(corner_1_pos.y, corner_2_pos.y),
+            max(corner_1_pos.y, corner_2_pos.y)
+        )
 
     def contains(self, P):
-        return self.xmin <= P.x and P.x <= self.xmax and self.ymin <= P.y and P.y <= self.ymax
+        return self.xmin <= P.x and P.x <= self.xmax and \
+               self.ymin <= P.y and P.y <= self.ymax
 
 class Triangle(Shape2D):
 
@@ -75,7 +77,10 @@ class Triangle(Shape2D):
         # calculate limits
         x_values = [vec.x for vec in [a, b, c]]
         y_values = [vec.y for vec in [a, b, c]]
-        super().__init__(min(x_values), max(x_values), min(y_values), max(y_values))
+        super().__init__(
+            min(x_values), max(x_values),
+            min(y_values), max(y_values)
+        )
         self.a = a
         self.b = b
         self.c = c
@@ -85,37 +90,36 @@ class Triangle(Shape2D):
         alpha = ((self.b.y - self.c.y) * (P.x - self.c.x) + (self.c.x - self.b.x) * (P.y - self.c.y)) / denominator
         beta = ((self.c.y - self.a.y) * (P.x - self.c.x) + (self.a.x - self.c.x) * (P.y - self.c.y)) / denominator
         gamma = 1 - beta - alpha
-        return 0 <= alpha and alpha <= 1 and 0 <= beta and beta <= 1 and 0 <= gamma and gamma <= 1
+        return 0 <= alpha and alpha <= 1 and \
+               0 <= beta  and beta  <= 1 and \
+               0 <= gamma and gamma <= 1
 
 class Rectangle(Shape2D):
 
     """ initialize with shape parameters
-    
     Args:
-        bottomleft_corner (2D Vector): position of the bottom left corner
-        dimensions (2D Vector): height and width of rectangle (without rotation)
-        orientation (float): angle in degrees rectangle is rotated around the 
-                             bottom left corner
-
+        corner_pos  (2D Vector) : starting position of the diagonal
+        diagonal    (2D Vector) : vector from corner_pos to opposite corner
+        orientation (radians)   : angle between the x-axis and the side
+                                  clockwise from the diagonal
     Returns:
         None """
-    def __init__(self, bottomleft_corner, dimensions, orientation):
-        # find corners
-        self.a = bottomleft_corner
-        diagonal = dimensions.rotated(orientation * math.pi / 180)
-        # unit vectors along edges of rectangle
-        left_hat = Vector([0,1]).rotated(orientation * math.pi / 180)
-        base_hat = Vector([1,0]).rotated(orientation * math.pi / 180)
-        # projection onto left side of rectangle
-        self.b = self.a + (diagonal * left_hat) * left_hat
-        self.c = self.a + diagonal
-        # projection onto base of rectangle
-        self.d = self.a + (diagonal * base_hat) * base_hat
+    def __init__(self, corner_pos, diagonal, orientation):
+        # assign corners of rectangle a, b, c, and d
+        a = corner_pos
+        b = corner_pos + Vector([0, diagonal.y]).rotated(orientation)
+        c = corner_pos + diagonal.rotated(orientation)
+        d = corner_pos + Vector([diagonal.x, 0]).rotated(orientation)
+        x_values = [vec.x for vec in [a, b, c, d]]
+        y_values = [vec.y for vec in [a, b, c, d]]
         # pass range to parent
-        super().__init__(min(self.a.x, self.b.x, self.c.x, self.d.x), max(self.a.x, self.b.x, self.c.x, self.d.x), min(self.a.y, self.b.y, self.c.y, self.d.y), max(self.a.y, self.b.y, self.c.y, self.d.y))
+        super().__init__(
+            min(x_values), max(x_values),
+            min(y_values), max(y_values)
+        )
         # create 2 triangles to represent rectangle
-        self._triangle_1 = Triangle(self.a, self.b, self.c)
-        self._triangle_2 = Triangle(self.a, self.c, self.d)
+        self._triangle_1 = Triangle(a, b, c)
+        self._triangle_2 = Triangle(a, c, d)
 
     def contains(self, P):
         return self._triangle_1.contains(P) or self._triangle_2.contains(P)
